@@ -1,52 +1,58 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fire_caht/screens/all_users.dart';
+import 'package:fire_caht/user/user.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class Chat extends StatelessWidget {
+class Chat extends StatefulWidget {
+  final receiverId;
+  final receiverName;
+  Chat({required this.receiverId, required this.receiverName});
+
+  @override
+  _ChatState createState() => _ChatState();
+}
+
+class _ChatState extends State<Chat> {
+  var _key = GlobalKey<FormState>();
+
+  var message;
+  var me;
+  List<QueryDocumentSnapshot<Object?>> otherData = [];
+  @override
+  void initState() {
+    me = Me.getUser();
+
+    super.initState();
+  }
+
+  ScrollController sc = ScrollController();
+
+  getData() {
+    FirebaseFirestore.instance
+        .collection('messages')
+        .where('sender', isEqualTo: widget.receiverId)
+        .where('receiver', isEqualTo: me)
+        .get()
+        .then((value) {
+      otherData = value.docs;
+      // otherData.add(value);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    getData();
+
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          FirebaseFirestore.instance
-              .collection('chat')
-              .doc('LewXjKovKVYTsgvEcW1z')
-              .collection('messages')
-              .add({'text': 'this is the new one'});
-        },
-        child: Icon(Icons.add),
-      ),
-      appBar: AppBar(
-        actions: [
-          DropdownButton(
-              icon: Icon(Icons.more_vert),
-              onChanged: (value) {
-                if (value == 'logout') {
-                  FirebaseAuth.instance.signOut();
-                }
-              },
-              items: [
-                DropdownMenuItem(
-                    value: 'logout',
-                    child: Container(
-                      child: Row(
-                        children: [
-                          Icon(Icons.exit_to_app),
-                          SizedBox(
-                            width: 8,
-                          ),
-                          Text('Sign Out')
-                        ],
-                      ),
-                    )),
-              ]),
-        ],
-      ),
+      appBar: AppBar(),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('chat')
-            .doc('LewXjKovKVYTsgvEcW1z')
             .collection('messages')
+            .where('sender', isEqualTo: me)
+            .where('receiver', isEqualTo: widget.receiverId)
             .snapshots(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
@@ -54,16 +60,91 @@ class Chat extends StatelessWidget {
           }
 
           if (snap.hasError) {
-            Text(snap.error.toString());
+            return Text(snap.error.toString());
           }
 
-          final docs = snap.data!.docs;
+          var docs = snap.data!.docs;
+          docs += otherData;
+          docs.sort((a, b) => b['time'].seconds - (a['time'].seconds));
 
-          return ListView.builder(
-              itemCount: docs.length,
-              itemBuilder: (context, index) {
-                return Text(docs[index]['text']);
-              });
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                    reverse: true,
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      return Container(
+                          margin: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: docs[index]['sender'] == me
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                  width:
+                                      MediaQuery.of(context).size.width * 0.35,
+                                  decoration: BoxDecoration(
+                                    color: docs[index]['sender'] == me
+                                        ? Colors.grey
+                                        : Colors.purple,
+                                    borderRadius: BorderRadius.circular(8.0),
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  child: Text(docs[index]['message'])),
+                            ],
+                          ));
+                    }),
+              ),
+              Container(
+                margin: const EdgeInsets.all(10),
+                child: Row(
+                  children: [
+                    Expanded(
+                        child: Form(
+                      key: _key,
+                      child: TextFormField(
+                        onSaved: (value) {
+                          message = value;
+                        },
+                        validator: (val) {
+                          if (val?.trim() == '') {
+                            return;
+                          }
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                            fillColor: Colors.grey, hoverColor: Colors.green),
+                      ),
+                    )),
+                    IconButton(
+                        onPressed: () {
+                          bool isValid = _key.currentState!.validate();
+                          if (isValid) {
+                            _key.currentState?.save();
+
+                            FirebaseFirestore.instance
+                                .collection('messages')
+                                .doc()
+                                .set({
+                              'sender': me,
+                              'receiver': widget.receiverId,
+                              'message': message,
+                              'time': Timestamp.now()
+                            });
+                            _key.currentState!.reset();
+                          }
+                        },
+                        icon: Icon(Icons.send)),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 20,
+              ),
+            ],
+          );
         },
       ),
     );
