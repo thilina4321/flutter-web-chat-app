@@ -3,9 +3,34 @@ import 'package:fire_caht/screens/Chat_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class AllUsersScreen extends StatelessWidget {
+class AllUsersScreen extends StatefulWidget {
   final userId;
   AllUsersScreen({this.userId});
+
+  @override
+  _AllUsersScreenState createState() => _AllUsersScreenState();
+}
+
+class _AllUsersScreenState extends State<AllUsersScreen> {
+  var me;
+
+  getName() async {
+    await FirebaseFirestore.instance
+        .collection('user')
+        .where('userId', isEqualTo: widget.userId)
+        .get()
+        .then((value) {
+      setState(() {
+        me = value.docs[0]['userName'];
+      });
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getName();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,60 +61,18 @@ class AllUsersScreen extends StatelessWidget {
                       ),
                     )),
               ]),
-          MaterialButton(
-            onPressed: () {
-              showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      content: Container(
-                        margin: const EdgeInsets.all(0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextFormField(),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                MaterialButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                  },
-                                  child: Text(
-                                    'Cancel',
-                                    textAlign: TextAlign.end,
-                                  ),
-                                ),
-                                MaterialButton(
-                                  onPressed: () {},
-                                  child: Text(
-                                    'Ok',
-                                    textAlign: TextAlign.end,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  });
-            },
-            child: Icon(Icons.search),
-          ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('user')
-            .where('userId', isNotEqualTo: userId)
+            .where('userId', isNotEqualTo: widget.userId)
             .snapshots(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return CircularProgressIndicator();
+            return Center(child: CircularProgressIndicator());
           }
           var user = snap.data!.docs;
-          print(user);
           return ListView.builder(
               itemCount: user.length,
               itemBuilder: (context, index) {
@@ -99,6 +82,7 @@ class AllUsersScreen extends StatelessWidget {
                     Navigator.push(context,
                         MaterialPageRoute(builder: (context) {
                       return Chat(
+                        myName: me,
                         receiverName: user[index]['userName'],
                         receiverId: user[index]['userId'],
                       );
@@ -113,6 +97,8 @@ class AllUsersScreen extends StatelessWidget {
                         ),
                         CircleAvatar(
                           backgroundColor: Colors.green,
+                          child: Text(
+                              user[index]['userName'].toString().split('')[0]),
                         ),
                         SizedBox(
                           width: 30,

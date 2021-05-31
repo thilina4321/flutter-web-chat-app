@@ -1,15 +1,15 @@
-import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fire_caht/screens/all_users.dart';
 import 'package:fire_caht/user/user.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class Chat extends StatefulWidget {
   final receiverId;
   final receiverName;
-  Chat({required this.receiverId, required this.receiverName});
+  final myName;
+  Chat(
+      {required this.receiverId,
+      required this.receiverName,
+      required this.myName});
 
   @override
   _ChatState createState() => _ChatState();
@@ -56,7 +56,7 @@ class _ChatState extends State<Chat> {
             .snapshots(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return CircularProgressIndicator();
+            return Center(child: CircularProgressIndicator());
           }
 
           if (snap.hasError) {
@@ -92,7 +92,22 @@ class _ChatState extends State<Chat> {
                                     borderRadius: BorderRadius.circular(8.0),
                                   ),
                                   padding: const EdgeInsets.all(8),
-                                  child: Text(docs[index]['message'])),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        docs[index]['myName'],
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        height: 10,
+                                      ),
+                                      Text(docs[index]['message']),
+                                    ],
+                                  )),
                             ],
                           ));
                     }),
@@ -131,6 +146,7 @@ class _ChatState extends State<Chat> {
                               'sender': me,
                               'receiver': widget.receiverId,
                               'message': message,
+                              'myName': widget.myName,
                               'time': Timestamp.now()
                             });
                             _key.currentState!.reset();

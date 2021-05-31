@@ -53,7 +53,6 @@ class _AuthScreenState extends State<AuthScreen> {
             SnackBar(content: Text('Wrong password provided for that user.')));
       }
     } catch (e) {
-      print(e);
       setState(() {
         isLoading = false;
       });

@@ -1,7 +1,6 @@
-import 'package:fire_caht/screens/Chat_screen.dart';
+import 'package:fire_caht/layout/double_column.dart';
+import 'package:fire_caht/layout/single_column.dart';
 import 'package:fire_caht/screens/all_users.dart';
-import 'package:fire_caht/screens/auth_screen.dart';
-import 'package:fire_caht/screens/my_userd.dart';
 import 'package:fire_caht/user/user.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +18,13 @@ class MyApp extends StatelessWidget {
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return CircularProgressIndicator();
+            return Container(
+              color: Colors.black,
+              child: Center(
+                  child: CircularProgressIndicator(
+                color: Colors.white,
+              )),
+            );
           }
           if (snap.hasData) {
             Me.addUser(snap.data!.uid);
@@ -27,7 +32,9 @@ class MyApp extends StatelessWidget {
               userId: snap.data!.uid,
             );
           }
-          return AuthScreen();
+          return MediaQuery.of(context).size.width > 800
+              ? DoubleColumnLayout()
+              : SingleColumnLayout();
         },
       ),
     );
