@@ -20,7 +20,6 @@ class _ChatState extends State<Chat> {
 
   var message;
   var me;
-  List<QueryDocumentSnapshot<Object?>> otherData = [];
   @override
   void initState() {
     me = Me.getUser();
@@ -28,32 +27,31 @@ class _ChatState extends State<Chat> {
     super.initState();
   }
 
-  ScrollController sc = ScrollController();
+  // late List<QueryDocumentSnapshot<Object?>> otherData;
 
   getData() {
     FirebaseFirestore.instance
         .collection('messages')
-        .where('sender', isEqualTo: widget.receiverId)
-        .where('receiver', isEqualTo: me)
-        .get()
-        .then((value) {
-      otherData = value.docs;
-      // otherData.add(value);
+        .where('sender', isEqualTo: me)
+        .where('receiver', isEqualTo: widget.receiverId)
+        .snapshots()
+        .forEach((element) {
+      // otherData = element.docs;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    getData();
+    // getData();
 
     return Scaffold(
       appBar: AppBar(),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('messages')
-            .where('sender', isEqualTo: me)
-            .where('receiver', isEqualTo: widget.receiverId)
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection('messages').where('users',
+            arrayContainsAny: [
+              me + widget.receiverId,
+              widget.receiverId + me
+            ]).snapshots(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
@@ -63,8 +61,9 @@ class _ChatState extends State<Chat> {
             return Text(snap.error.toString());
           }
 
-          var docs = snap.data!.docs;
-          docs += otherData;
+          List<QueryDocumentSnapshot<Object?>> docs = snap.data!.docs;
+          // otherData.map((e) => print(e['users']));
+          // docs += otherData;
           docs.sort((a, b) => b['time'].seconds - (a['time'].seconds));
 
           return Column(
@@ -143,6 +142,7 @@ class _ChatState extends State<Chat> {
                                 .collection('messages')
                                 .doc()
                                 .set({
+                              'users': [me + widget.receiverId],
                               'sender': me,
                               'receiver': widget.receiverId,
                               'message': message,
